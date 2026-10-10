@@ -171,12 +171,23 @@ and an incompatible stable public contract requires a major version change.
 ## Source repository and history
 
 The canonical upstream is
-[github.com/mweidle73/spawn-manager][canonical-repository].
+[github.com/abuild-project/spawn-manager][canonical-repository].
 The project was initially developed at
 [Codelabs](https://git.codelabs.ch/?p=spawn-manager.git); that former repository
 location is retained as a redirect and historical point of reference.
 
-[canonical-repository]: https://github.com/mweidle73/spawn-manager
+[canonical-repository]: https://github.com/abuild-project/spawn-manager
+
+The previous `mweidle73/spawn-manager` GitHub address redirects to this
+repository, including Git clone, fetch and push operations. Keep that old
+repository path unoccupied so existing checkouts and historical Abuild
+submodule URLs retain the redirect.
+
+The rendered documentation is available at
+[abuild-project.github.io/spawn-manager/][documentation-site]. GitHub Pages
+does not provide the repository transfer's automatic redirect.
+
+[documentation-site]: https://abuild-project.github.io/spawn-manager/
 
 `master` is the protected development and release branch. The former `abuild`
 integration branch and its `abuild-gh` GitHub CI overlay are frozen at the

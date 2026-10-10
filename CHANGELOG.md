@@ -24,6 +24,9 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
 
 ### Changed
 
+- Moved the canonical repository and documentation to the `abuild-project`
+  GitHub organization. Updated source and private security-reporting links;
+  the former repository address remains available through GitHub's redirect.
 - Established the maintained GitHub repository and its protected `master`
   branch as the canonical upstream. Retained the former Codelabs development,
   Abuild integration and GitHub overlay branches as frozen history.

@@ -7,7 +7,7 @@ body:
         Do not disclose potential security vulnerabilities here. Report them
         through GitHub private vulnerability reporting:
 
-        https://github.com/mweidle73/spawn-manager/security/advisories/new
+        https://github.com/abuild-project/spawn-manager/security/advisories/new
 
   - type: input
     id: version
