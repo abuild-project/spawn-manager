@@ -20,7 +20,7 @@ or discussion.
 
 Use GitHub's private vulnerability reporting for this repository:
 
-https://github.com/mweidle73/spawn-manager/security/advisories/new
+https://github.com/abuild-project/spawn-manager/security/advisories/new
 
 Include the affected version, platform, realistic impact, relevant
 configuration and the smallest useful reproduction. Remove credentials,

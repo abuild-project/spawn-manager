@@ -56,7 +56,7 @@ jobs:
           grep -Fq '<title>Ada Spawn Manager</title>' doc/html/index.html
           grep -Fq '<h1 id="ada-spawn-manager">Ada Spawn Manager</h1>' \
             doc/html/index.html
-          grep -Fq 'github.com/mweidle73/spawn-manager' doc/html/index.html
+          grep -Fq 'github.com/abuild-project/spawn-manager' doc/html/index.html
           grep -Fq 'git.codelabs.ch/?p=spawn-manager.git' doc/html/index.html
           grep -Fq 'spawn-manager/blob/master/src/spawn-pool.ads' \
             doc/html/index.html

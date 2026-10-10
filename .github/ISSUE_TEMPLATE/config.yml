@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Report a security vulnerability privately
-    url: https://github.com/mweidle73/spawn-manager/security/advisories/new
+    url: https://github.com/abuild-project/spawn-manager/security/advisories/new
     about: Do not disclose potential vulnerabilities in a public issue.
