@@ -16,13 +16,6 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
 
 ## [Unreleased]
 
-### Fixed
-
-- Catchable manager shutdown now waits for its executor to reap request
-  descendants before exiting, including after the leader identity has been
-  retired. A stalled reap acknowledgement fail-stops within a fixed bound.
-  Shell and structured requests retain the existing wire format and results.
-
 ### Added
 
 - Added public contribution guidance and a private vulnerability-reporting
@@ -38,6 +31,13 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
   branch as the canonical upstream. Retained the former Codelabs development,
   Abuild integration and GitHub overlay branches as frozen history.
 - Replaced Codelabs synchronization with local release-tag integrity checks.
+
+### Fixed
+
+- Catchable manager shutdown now waits for its executor to reap request
+  descendants before exiting, including after the leader identity has been
+  retired. A stalled reap acknowledgement fail-stops within a fixed bound.
+  Shell and structured requests retain the existing wire format and results.
 
 ## [0.2.0] - 2026-09-27
 

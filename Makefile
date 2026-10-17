@@ -59,7 +59,7 @@ tests: $(POSIX_TEST) $(PROTOCOL_FAILURE_MANAGER) spawn_tests spawn_manager
 	@$(OBJDIR)/spawn_manager 47 $(OBJDIR)/spawn_manager_min_spawn &
 	@$(OBJDIR)/test_runner
 	@tests/check_signal_shutdown.sh "$(CURDIR)"
-	@python3 tests/check_signal_reaping.py "$(CURDIR)/obj/spawn_manager" 1
+	@python3 tests/check_signal_reaping.py "$(abspath $(OBJDIR))/spawn_manager" 1
 	@tests/check_adaflags.sh "$(CURDIR)"
 	@tests/check_install.sh "$(CURDIR)"
 

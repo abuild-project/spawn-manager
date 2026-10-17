@@ -17,22 +17,6 @@ define acceptance evidence before starting an item.
 
 ## Accepted follow-ups
 
-### Catchable shutdown reaping
-
-Implemented on the current topic; upstream acceptance remains pending.
-SIGINT/SIGTERM used to kill the request group and immediately exit the manager,
-which could abandon killed descendants before the executor reaped them. The
-shutdown hook now awaits a bounded acknowledgement from the sole reaper,
-including the interval after leader retirement. It does not change the wire
-protocol, pool API or ordinary request execution path.
-
-Direct C barriers pin delayed and stalled descendant reaping. A built-manager
-check becomes the nearest fallback subreaper and rejects adopted children for
-both request kinds and termination signals, independent of container init.
-Fixture recovery also pins adoption across killed generations.
-Carry this correction into the shared-output topic before caller acceptance;
-the downstream Make migration does not silently change its dependency.
-
 ### Neutral GitHub organization
 
 The canonical repository initially remains under its current personal GitHub

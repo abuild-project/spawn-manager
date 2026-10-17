@@ -1446,6 +1446,7 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 		pid_t adopted;
 		int status;
 		int child_status;
+		struct timespec pause = { 0, 10 * 1000 * 1000 };
 
 		require(supervisor >= 0, "fork reaping supervisor");
 		if (supervisor == 0) {
@@ -1455,9 +1456,14 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 		require(__real_waitpid(supervisor, &status, 0) == supervisor,
 			"wait for reaping supervisor");
 		/* A fail-stop can leave killed children; own and reap those here. */
-		do {
-			adopted = __real_waitpid(-1, &child_status, 0);
-		} while (adopted > 0 || (adopted < 0 && errno == EINTR));
+		for (int attempt = 0; attempt < 500; ++attempt) {
+			adopted = __real_waitpid(-1, &child_status, WNOHANG);
+			if (adopted < 0 && errno == ECHILD)
+				break;
+			require(adopted >= 0 || errno == EINTR,
+				"reaping supervisor recovery failed");
+			(void)nanosleep(&pause, NULL);
+		}
 		require(adopted < 0 && errno == ECHILD,
 			"reaping supervisor left an adopted child");
 		require(WIFEXITED(status) && WEXITSTATUS(status)
