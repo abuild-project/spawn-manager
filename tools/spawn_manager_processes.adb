@@ -102,7 +102,7 @@ package body Spawn_Manager_Processes is
       function Convert
         (Stream : Spawn.Protocol.Stream_Specification_Type)
          return Stream_Specification;
-      --  Convert the two fixed protocol stream alternatives.
+      --  Map null, truncate and stderr-to-stdout policies to the launch model.
 
       function Convert
         (Stream : Spawn.Protocol.Stream_Specification_Type)
