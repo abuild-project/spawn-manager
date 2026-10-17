@@ -16,6 +16,13 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
 
 ## [Unreleased]
 
+### Fixed
+
+- Catchable manager shutdown now waits for its executor to reap request
+  descendants before exiting, including after the leader identity has been
+  retired. A stalled reap acknowledgement fail-stops within a fixed bound.
+  Shell and structured requests retain the existing wire format and results.
+
 ### Added
 
 - Added public contribution guidance and a private vulnerability-reporting

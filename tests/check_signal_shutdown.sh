@@ -23,8 +23,8 @@ manager_body=$source_root/tools/spawn_manager.adb
 posix_core=$source_root/src/spawn-posix.c
 
 # The attached handler runs in a GNAT interrupt-server task. Keep it to the
-# synchronized C containment hook and immediate process exit; the pool owns
-# socket-path cleanup after the manager has terminated.
+# synchronized C shutdown hook followed by process exit. The hook waits for
+# the executor's bounded reap; the pool owns socket-path cleanup afterwards.
 actual=$(
 	awk '
 		/^[[:space:]]*procedure Handle_Signal$/ { handler = 1 }
@@ -69,4 +69,4 @@ if test "$manager_mask_calls" -ne 1 || test "$child_mask_calls" -ne 1; then
 	exit 1
 fi
 
-echo "Signal shutdown contains the active group before immediate exit"
+echo "Signal shutdown delegates bounded containment and reaping to C"

@@ -109,9 +109,20 @@ pre-exec `Close_Descriptors` stage instead of proceeding to `execve`. The Work
 Queue retains the missing unlimited-limit fault injection and boundedness
 evidence.
 
-The attached manager signal handler invokes only the synchronized C
-containment hook and immediate OS exit. The pool owns socket-path cleanup after
-the manager has terminated.
+The attached manager signal handler invokes the synchronized C shutdown hook,
+then exits. The hook closes the fork gate and kills the still-pinned group.
+It then waits for the normal executor to acknowledge complete leader and
+descendant reaping; it does not introduce a competing `waitpid` owner. A
+mutex-protected in-progress flag spans the interval after the numeric group
+identity is retired but before descendant collection finishes.
+
+The reap acknowledgement has a fixed one-second wait, below the pool's
+three-second manager wait. If the executor cannot finish, the manager
+fail-stops with status 125 instead of waiting indefinitely or reporting normal
+shutdown. Executor-side containment failure does not wait for itself. A
+fail-stop cannot promise that uncollectable children have been reaped; their
+eventual collection belongs to the next subreaper or host init. The pool owns
+socket-path cleanup after the manager has terminated.
 
 ## Failure classification
 

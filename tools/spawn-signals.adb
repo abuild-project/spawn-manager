@@ -37,7 +37,8 @@ package body Spawn.Signals is
      with Import,
           Convention    => C,
           External_Name => "spawn_posix_terminate_current";
-   --  Kill the C-owned active request group, or do nothing when none exists.
+   --  Kill the C-owned group and await its executor's bounded reap before
+   --  allowing the manager to exit.
 
    -------------------------------------------------------------------------
 
