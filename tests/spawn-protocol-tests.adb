@@ -38,7 +38,7 @@ package body Spawn.Protocol.Tests is
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. 62)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#02#,
+            16#00#, 16#02#, 16#00#, 16#02#,
             16#00#, 16#00#, 16#00#, 16#32#,
             16#00#, 16#00#, 16#00#, 16#02#, 16#2f#, 16#78#,
             16#00#, 16#00#, 16#00#, 16#01#,
@@ -89,11 +89,67 @@ package body Spawn.Protocol.Tests is
 
    -------------------------------------------------------------------------
 
+   procedure Exec_Merged_Golden_Data
+   is
+      --  Independent byte oracle: mode 1 carries /o, mode 2 carries no path.
+      --  The frame length equals the old split-stream example by coincidence.
+      Golden : constant Ada.Streams.Stream_Element_Array (1 .. 62) :=
+        (16#53#, 16#50#, 16#57#, 16#4e#,
+         16#00#, 16#02#, 16#00#, 16#02#,
+         16#00#, 16#00#, 16#00#, 16#32#,
+         16#00#, 16#00#, 16#00#, 16#02#, 16#2f#, 16#78#,
+         16#00#, 16#00#, 16#00#, 16#01#,
+         16#00#, 16#00#, 16#00#, 16#01#, 16#61#,
+         16#00#, 16#00#, 16#00#, 16#01#,
+         16#00#, 16#00#, 16#00#, 16#01#, 16#45#,
+         16#00#, 16#00#, 16#00#, 16#01#, 16#56#,
+         16#00#, 16#00#, 16#00#, 16#01#, 16#2f#,
+         16#01#, 16#00#, 16#00#, 16#00#, 16#02#, 16#2f#, 16#6f#,
+         16#02#,
+         16#ff#, 16#ff#, 16#ff#, 16#ff#,
+         16#ff#, 16#ff#, 16#ff#, 16#ff#);
+      Expected : Exec_Request_Type;
+      Decoded  : Exec_Request_Type;
+      Data     : Ada.Streams.Stream_Element_Array (Golden'Range);
+   begin
+      Expected.Executable := Ada.Strings.Unbounded.To_Unbounded_String ("/x");
+      Expected.Arguments.Append ("a");
+      Expected.Environment.Append
+        ((Name  => Ada.Strings.Unbounded.To_Unbounded_String ("E"),
+          Value => Ada.Strings.Unbounded.To_Unbounded_String ("V")));
+      Expected.Directory := Ada.Strings.Unbounded.To_Unbounded_String ("/");
+      Expected.Standard_Output :=
+        (Mode => Truncate_File,
+         Path => Ada.Strings.Unbounded.To_Unbounded_String ("/o"));
+      Expected.Standard_Error := (Mode => Merge_Stdout);
+      Expected.Timeout := -1;
+      Assert (Exec_Request_Frame_Length (Expected, Maximum_Frame_Size) = 62,
+              "shared stream frame length differs");
+      Encode_Exec_Request (Expected, Maximum_Frame_Size, Data);
+      Assert (Data = Golden, "shared stream encoding differs from oracle");
+      Decode_Exec_Request (Golden, Maximum_Frame_Size, Decoded);
+      Assert (Decoded = Expected, "shared stream decoding differs");
+
+      Expected.Standard_Output := (Mode => Merge_Stdout);
+      begin
+         declare
+            Length : constant Positive := Exec_Request_Frame_Length
+              (Expected, Maximum_Frame_Size);
+         begin
+            Fail ("stdout self-reference accepted, length" & Length'Image);
+         end;
+      exception
+         when Request_Error => null;
+      end;
+   end Exec_Merged_Golden_Data;
+
+   -------------------------------------------------------------------------
+
    procedure Exec_Rejects_Invalid_Data
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. 62)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#02#,
+            16#00#, 16#02#, 16#00#, 16#02#,
             16#00#, 16#00#, 16#00#, 16#32#,
             16#00#, 16#00#, 16#00#, 16#02#, 16#2f#, 16#78#,
             16#00#, 16#00#, 16#00#, 16#01#,
@@ -159,13 +215,19 @@ package body Spawn.Protocol.Tests is
       declare
          Data : Ada.Streams.Stream_Element_Array := Golden;
       begin
-         Data (47) := 2;
+         Data (47) := 3;
          Reject_Protocol (Data => Data, Name => "unknown stream mode");
+      end;
+      declare
+         Data : Ada.Streams.Stream_Element_Array := Golden;
+      begin
+         Data (47) := 2;
+         Reject_Request (Data => Data, Name => "stdout self-reference");
       end;
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 22)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#02#,
+               16#00#, 16#02#, 16#00#, 16#02#,
                16#00#, 16#00#, 16#00#, 16#0a#,
                16#00#, 16#00#, 16#00#, 16#02#, 16#2f#, 16#78#,
                16#00#, 16#00#, 16#04#, 16#01#);
@@ -437,7 +499,7 @@ package body Spawn.Protocol.Tests is
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. Header_Size)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#02#,
+            16#00#, 16#02#, 16#00#, 16#02#,
             16#00#, 16#00#, 16#00#, 16#24#);
       Data   : Ada.Streams.Stream_Element_Array (1 .. Header_Size);
       Header : Header_Type;
@@ -463,7 +525,7 @@ package body Spawn.Protocol.Tests is
    is
       Valid : constant Ada.Streams.Stream_Element_Array (1 .. Header_Size)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#01#,
+            16#00#, 16#02#, 16#00#, 16#01#,
             16#00#, 16#00#, 16#00#, 16#00#);
       Header : Header_Type;
 
@@ -497,8 +559,8 @@ package body Spawn.Protocol.Tests is
       declare
          Data : Ada.Streams.Stream_Element_Array := Valid;
       begin
-         Data (6) := 2;
-         Reject (Data => Data, Name => "invalid version");
+         Data (6) := 1;
+         Reject (Data => Data, Name => "released version 1");
       end;
       declare
          Data : Ada.Streams.Stream_Element_Array := Valid;
@@ -518,6 +580,9 @@ package body Spawn.Protocol.Tests is
       T.Add_Test_Routine
         (Routine => Exec_Golden_Data'Access,
          Name    => "Encode and decode golden exec request");
+      T.Add_Test_Routine
+        (Routine => Exec_Merged_Golden_Data'Access,
+         Name    => "Encode and decode shared stderr request");
       T.Add_Test_Routine
         (Routine => Exec_Roundtrip_And_Bounds'Access,
          Name    => "Round trip bounded exec request");
@@ -599,7 +664,7 @@ package body Spawn.Protocol.Tests is
         (Expected => (Kind => Exited, Exit_Status => 16#fedc_ba98#),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#05#,
             16#00#, 16#fe#, 16#dc#, 16#ba#, 16#98#),
          Name     => "exit result");
@@ -607,7 +672,7 @@ package body Spawn.Protocol.Tests is
         (Expected => (Kind => Signaled, Signal_Number => 15),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#03#,
             16#01#, 16#00#, 16#0f#),
          Name     => "signal result");
@@ -615,7 +680,7 @@ package body Spawn.Protocol.Tests is
         (Expected => (Kind => Timed_Out),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#01#, 16#02#),
          Name     => "timeout result");
       Check
@@ -628,7 +693,7 @@ package body Spawn.Protocol.Tests is
                  ("exec"))),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#0f#,
             16#03#, 16#00#, 16#0f#,
             16#00#, 16#00#, 16#00#, 16#02#,
@@ -642,7 +707,7 @@ package body Spawn.Protocol.Tests is
               ("bad request")),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#10#,
             16#04#, 16#00#, 16#00#, 16#00#, 16#0b#,
             16#62#, 16#61#, 16#64#, 16#20#, 16#72#, 16#65#,
@@ -655,7 +720,7 @@ package body Spawn.Protocol.Tests is
               ("bad frame")),
          Golden   =>
            (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#0e#,
             16#05#, 16#00#, 16#00#, 16#00#, 16#09#,
             16#62#, 16#61#, 16#64#, 16#20#, 16#66#,
@@ -667,7 +732,7 @@ package body Spawn.Protocol.Tests is
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. 27)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#03#,
+            16#00#, 16#02#, 16#00#, 16#03#,
             16#00#, 16#00#, 16#00#, 16#0f#,
             16#03#, 16#00#, 16#0f#,
             16#00#, 16#00#, 16#00#, 16#02#,
@@ -705,7 +770,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 13)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#03#,
+               16#00#, 16#02#, 16#00#, 16#03#,
                16#00#, 16#00#, 16#00#, 16#01#,
                16#06#);
       begin
@@ -726,7 +791,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 14)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#03#,
+               16#00#, 16#02#, 16#00#, 16#03#,
                16#00#, 16#00#, 16#00#, 16#02#,
                16#02#, 16#00#);
       begin
@@ -735,7 +800,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 17)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#03#,
+               16#00#, 16#02#, 16#00#, 16#03#,
                16#00#, 16#00#, 16#00#, 16#05#,
                16#05#, 16#00#, 16#00#, 16#10#, 16#01#);
       begin
@@ -858,7 +923,7 @@ package body Spawn.Protocol.Tests is
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. 38)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#01#,
+            16#00#, 16#02#, 16#00#, 16#01#,
             16#00#, 16#00#, 16#00#, 16#1a#,
             16#00#, 16#00#, 16#00#, 16#09#,
             16#2f#, 16#62#, 16#69#, 16#6e#,
@@ -908,7 +973,7 @@ package body Spawn.Protocol.Tests is
    is
       Golden : constant Ada.Streams.Stream_Element_Array (1 .. 38)
         := (16#53#, 16#50#, 16#57#, 16#4e#,
-            16#00#, 16#01#, 16#00#, 16#01#,
+            16#00#, 16#02#, 16#00#, 16#01#,
             16#00#, 16#00#, 16#00#, 16#1a#,
             16#00#, 16#00#, 16#00#, 16#09#,
             16#2f#, 16#62#, 16#69#, 16#6e#,
@@ -994,7 +1059,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 28)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#01#,
+               16#00#, 16#02#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#10#,
                16#00#, 16#00#, 16#00#, 16#00#,
                16#00#, 16#00#, 16#00#, 16#00#,
@@ -1006,7 +1071,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 29)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#01#,
+               16#00#, 16#02#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#11#,
                16#00#, 16#00#, 16#00#, 16#01#, 16#78#,
                16#00#, 16#00#, 16#00#, 16#00#,
@@ -1018,7 +1083,7 @@ package body Spawn.Protocol.Tests is
       declare
          Data : constant Ada.Streams.Stream_Element_Array (1 .. 16)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#01#,
+               16#00#, 16#02#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#04#,
                16#00#, 16#01#, 16#00#, 16#01#);
       begin

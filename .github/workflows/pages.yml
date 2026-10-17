@@ -51,6 +51,7 @@ jobs:
           test -s doc/html/CHANGELOG.html
           test -s doc/html/WORK_QUEUE.html
           test -s doc/html/protocol-v1.html
+          test -s doc/html/protocol-v2.html
           test -s doc/html/lifecycle-v1.html
           test -s doc/html/styles.css
           grep -Fq '<title>Ada Spawn Manager</title>' doc/html/index.html
@@ -71,6 +72,10 @@ jobs:
             doc/html/WORK_QUEUE.html
           grep -Fq '<h1 id="spawn-manager-protocol-version-1">' \
             doc/html/protocol-v1.html
+          grep -Fq '<h1 id="spawn-manager-protocol-version-2">' \
+            doc/html/protocol-v2.html
+          grep -Fq "href=\"$source_base_url/src/spawn-protocol.ads\"" \
+            doc/html/protocol-v2.html
           grep -Fq '<h1 id="spawn-manager-lifecycle-version-1">' \
             doc/html/lifecycle-v1.html
           unexpected_links=$(
@@ -84,6 +89,7 @@ jobs:
                 -e '^CHANGELOG\.html($|#)' \
                 -e '^WORK_QUEUE\.html($|#)' \
                 -e '^protocol-v1\.html($|#)' \
+                -e '^protocol-v2\.html($|#)' \
                 -e '^lifecycle-v1\.html($|#)' \
                 -e '^styles\.css$' ||
               true

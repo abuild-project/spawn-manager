@@ -485,12 +485,39 @@ static int fixture_output(int argc, char *argv[])
 	return 0;
 }
 
+/* Querying the other fd after each write proves shared open-file-description
+ * offsets, not just two descriptors which happen to name the same inode.
+ * The final stdout write also detects accidentally closing fd 1 after dup2.
+ */
+static int fixture_merged_output(void)
+{
+	static const char first[] = "stdout-first\n";
+	static const char second[] = "stderr-second\n";
+	static const char last[] = "stdout-last\n";
+
+	require(write(STDOUT_FILENO, first, sizeof(first) - 1)
+		== (ssize_t)(sizeof(first) - 1), "write first shared stdout");
+	require(lseek(STDERR_FILENO, 0, SEEK_CUR) == (off_t)(sizeof(first) - 1),
+		"stderr does not share stdout offset");
+	require(write(STDERR_FILENO, second, sizeof(second) - 1)
+		== (ssize_t)(sizeof(second) - 1), "write shared stderr");
+	require(lseek(STDOUT_FILENO, 0, SEEK_CUR)
+		== (off_t)(sizeof(first) + sizeof(second) - 2),
+		"stdout does not share stderr offset");
+	require(write(STDOUT_FILENO, last, sizeof(last) - 1)
+		== (ssize_t)(sizeof(last) - 1), "stdout remained open");
+	return 7;
+}
+
+/* Dispatch the fixture only after exec, outside the restricted fork window. */
 static int fixture(int argc, char *argv[], char *envp[])
 {
 	if (argc < 3)
 		return 80;
 	if (strcmp(argv[2], "verify") == 0)
 		return fixture_verify(argc, argv, envp);
+	if (strcmp(argv[2], "merged") == 0)
+		return fixture_merged_output();
 	if (strcmp(argv[2], "exit37") == 0)
 		return 37;
 	if (strcmp(argv[2], "signal") == 0) {
@@ -808,6 +835,54 @@ static void test_request_data(
 		&& (stderr_status.st_mode & 0777) == 0640,
 		"preserve existing stream modes");
 	pass("argv, replacement environment, cwd and split streams");
+}
+
+/* Exercise the direct C contract with independent byte and offset oracles,
+ * including truncation, retained permissions, null output and misuse.
+ */
+static void test_merged_output(const char *self, const char *output_path)
+{
+	char *empty_environment[] = { NULL };
+	char *arguments[] = { (char *)self, "fixture", "merged", NULL };
+	char *null_arguments[] = {
+		"/bin/sh", "-c", "printf output; printf error >&2", NULL
+	};
+	struct spawn_posix_result result;
+	struct stat status;
+	char stale[256];
+	char *content;
+	int descriptor;
+
+	memset(stale, 'x', sizeof(stale));
+	descriptor = open(output_path, O_WRONLY | O_TRUNC);
+	require(descriptor >= 0, "open stale shared log");
+	require(write(descriptor, stale, sizeof(stale)) == (ssize_t)sizeof(stale),
+		"write stale shared log");
+	require(close(descriptor) == 0, "close stale shared log");
+	require(spawn_posix_execute(self, arguments, 0, empty_environment, "/",
+		SPAWN_POSIX_TRUNCATE_FILE, output_path,
+		SPAWN_POSIX_MERGE_STDOUT, NULL, 1000, &result) == 0,
+		"execute shared-output fixture");
+	require_exited(&result, 7, "preserve nonzero shared-output result");
+	content = read_file(output_path);
+	require(strcmp(content, "stdout-first\nstderr-second\nstdout-last\n") == 0,
+		"shared output order or truncation differs");
+	free(content);
+	require(stat(output_path, &status) == 0
+		&& (status.st_mode & 0777) == 0600, "shared log mode changed");
+	require(spawn_posix_execute("/bin/sh", null_arguments, 0,
+		empty_environment, "/", SPAWN_POSIX_NULL_STREAM, NULL,
+		SPAWN_POSIX_MERGE_STDOUT, NULL, 1000, &result) == 0,
+		"merge stderr with null stdout");
+	require_exited(&result, 0, "null shared-output result");
+	require(spawn_posix_execute(self, arguments, 0, empty_environment, "/",
+		SPAWN_POSIX_MERGE_STDOUT, NULL,
+		SPAWN_POSIX_NULL_STREAM, NULL, 1000, &result) == 0,
+		"reject stdout self-reference");
+	require(result.kind == SPAWN_POSIX_SPAWN_FAILED
+		&& result.failure_stage == SPAWN_POSIX_OPEN_STDOUT
+		&& result.error_number == EINVAL, "stdout self-reference stage");
+	pass("shared output offset, order, truncation and permissions");
 }
 
 static void test_stdin_and_descriptors(
@@ -1659,6 +1734,7 @@ int main(int argc, char *argv[], char *envp[])
 	test_group_setup_failure_descendants(self, pid_path);
 	require(unlink(pid_path) == 0, "reset group setup descendant pid file");
 	test_request_data(self, root, stdout_path, stderr_path);
+	test_merged_output(self, stdout_path);
 	test_stdin_and_descriptors(self, inherited_fd);
 	test_stream_nofollow(self, symlink_path);
 	test_timeout_group(self, pid_path);

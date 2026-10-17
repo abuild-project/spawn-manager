@@ -37,8 +37,9 @@ both at one pathname would open and truncate it twice and would not preserve
 the historical ordered combined build log, so component `make` remains an
 intentional shell caller.
 
-Define and test one shared open-file-description stream policy, either as an
-explicitly compatible V1 completion before release or as protocol V2. Preserve
+V2 development implements `Merge_Stdout` for stderr. The released version-1
+wire contract remains unchanged.
+Deliver the dependency before the Make caller step. Preserve
 ordered stdout/stderr, cgroup placement, complete argv logging and Ctrl-C
 cleanup, then migrate `make -s -jN -C PATH` to structured execution.
 

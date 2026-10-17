@@ -15,6 +15,7 @@ HTML_DOCUMENTS = \
 	$(DESTDIR)/CHANGELOG.html \
 	$(DESTDIR)/WORK_QUEUE.html \
 	$(DESTDIR)/protocol-v1.html \
+	$(DESTDIR)/protocol-v2.html \
 	$(DESTDIR)/lifecycle-v1.html \
 	$(DESTDIR)/styles.css
 
@@ -30,6 +31,7 @@ $(DESTDIR)/index.html: ../README.md Makefile | $(DESTDIR)
 		-e 's|href="CHANGELOG.md"|href="CHANGELOG.html"|g' \
 		-e 's|href="WORK_QUEUE.md"|href="WORK_QUEUE.html"|g' \
 		-e 's|href="doc/protocol-v1.md"|href="protocol-v1.html"|g' \
+		-e 's|href="doc/protocol-v2.md"|href="protocol-v2.html"|g' \
 		-e 's|href="doc/lifecycle-v1.md"|href="lifecycle-v1.html"|g' \
 		-e 's|href="src/spawn-pool.ads"|href="$(SOURCE_BASE_URL)/src/spawn-pool.ads"|g' \
 		-e 's|href="AUTHORS"|href="$(SOURCE_BASE_URL)/AUTHORS"|g' \
@@ -45,12 +47,15 @@ $(DESTDIR)/WORK_QUEUE.html: ../WORK_QUEUE.md Makefile | $(DESTDIR)
 	$(PANDOC) $(PANDOC_OPTS) --metadata pagetitle="Spawn Manager work queue" \
 		-o $@ $<
 
-$(DESTDIR)/protocol-v1.html: protocol-v1.md Makefile | $(DESTDIR)
-	$(PANDOC) $(PANDOC_OPTS) --metadata pagetitle="Protocol version 1" \
+$(DESTDIR)/protocol-%.html: protocol-%.md Makefile | $(DESTDIR)
+	$(PANDOC) $(PANDOC_OPTS) --metadata pagetitle="Protocol $*" \
 		-o $@.tmp $<
 	sed \
 		-e 's|href="../src/spawn-protocol.ads"|href="$(SOURCE_BASE_URL)/src/spawn-protocol.ads"|g' \
 		-e 's|href="../README.md#anet-boundary"|href="index.html#anet-boundary"|g' \
+		-e 's|href="protocol-v1.md|href="protocol-v1.html|g' \
+		-e 's|href="protocol-v2.md|href="protocol-v2.html|g' \
+		-e 's|href="lifecycle-v1.md|href="lifecycle-v1.html|g' \
 		$@.tmp > $@
 	rm -f $@.tmp
 

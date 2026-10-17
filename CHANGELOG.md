@@ -18,6 +18,10 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
 
 ### Added
 
+- Added fixed protocol 2 and an explicit stderr-to-stdout stream policy. Stdout
+  is opened once and its descriptor duplicated for stderr. Independent streams,
+  shell behavior, privilege restrictions and supervision remain unchanged;
+  old protocol versions are rejected rather than negotiated.
 - Added public contribution guidance and a private vulnerability-reporting
   security policy for the canonical upstream.
 - Added lightweight issue and pull-request templates for public contributions.

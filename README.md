@@ -21,22 +21,23 @@ The project provides two request styles:
 - a compatible command-string API that executes
   `/bin/bash -o pipefail -c COMMAND`; and
 - a structured API with an explicit executable, ordered argument vector,
-  complete replacement environment, working directory, independent standard
-  output and error destinations, and timeout.
+  complete replacement environment, working directory, independent or
+  explicitly shared output destinations, and timeout.
 
 Both styles use the same bounded, versioned protocol and the same supervised
 execution core. There is no intermediate `spawn_wrapper` process.
 
 ## Status and platform
 
-This revision defines release **0.2.0**. It introduces structured execution
-while retaining the existing shell API. Its contents are collected in the
+The latest stable release is **0.2.0**. This development revision adds protocol
+2 with shared output and requires its matching library and manager. It retains
+the existing shell API. Changes are collected in the
 [changelog](CHANGELOG.md); accepted later work is tracked in the
 [work queue](WORK_QUEUE.md).
 
 The current execution core is Linux-specific. It relies on Unix-domain
 sockets, process groups, `prctl(2)`, `/proc` and POSIX process and signal
-operations. Version 1 sets `no_new_privs` for every child, so shell and
+operations. Both versions set `no_new_privs` for every child, so shell and
 structured requests cannot gain privileges through set-user-ID,
 set-group-ID or file-capability metadata during `execve`.
 
@@ -59,7 +60,7 @@ instead of making that manager available to another caller.
 
 For the exact contracts, see:
 
-- [Protocol version 1](doc/protocol-v1.md) for the shell and structured wire
+- [Protocol version 2](doc/protocol-v2.md) for the shell and structured wire
   formats, bounds and result encoding.
 - [Lifecycle version 1](doc/lifecycle-v1.md) for process groups, signals,
   timeouts, reaping, `no_new_privs`, cgroup callbacks and failure handling.
@@ -73,7 +74,7 @@ connections, switches descriptors to nonblocking mode and closes them. Spawn
 Manager also uses Anet's operating-system constants and filesystem utilities.
 
 Frame serialization and exact frame transfer deliberately belong to Spawn
-Manager. Version 1 does not use `Anet.Streams`, Ada record streaming or the
+Manager. Neither version uses `Anet.Streams`, Ada record streaming or the
 generic `Anet.Sockets.Send` and `Receive` operations for protocol data. Those
 socket operations each represent one system call, whereas this protocol must
 resume partial reads and writes, distinguish first-byte and completion
@@ -84,7 +85,7 @@ rules with `poll(2)`, `recv(2)` and `send(2)`.
 
 This boundary is intentional rather than a replacement for Anet. A future
 Anet primitive offering the same exact, deadline-bounded nonblocking transfer
-semantics could replace the generic I/O part without changing the version 1
+semantics could replace the generic I/O part without changing the current
 wire format. Frame layout, validation and protocol failure classification
 would remain Spawn Manager responsibilities.
 

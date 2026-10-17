@@ -123,7 +123,7 @@ package body Spawn.Protocol is
    function Kind_To_Wire
      (Kind : Message_Kind)
       return Interfaces.Unsigned_16;
-   --  Return the assigned version 1 value for Kind.
+   --  Return the fixed wire value for Kind.
 
    function Diagnostic_Field_Length
      (Value : Ada.Strings.Unbounded.Unbounded_String)
@@ -151,7 +151,7 @@ package body Spawn.Protocol is
 
    procedure Validate_Diagnostic
      (Value : Ada.Strings.Unbounded.Unbounded_String);
-   --  Reject a diagnostic which cannot be represented within version 1.
+   --  Reject a diagnostic which exceeds the unchanged protocol bounds.
 
    procedure Validate_Environment_Name
      (Value : Ada.Strings.Unbounded.Unbounded_String);
@@ -171,12 +171,12 @@ package body Spawn.Protocol is
 
    procedure Validate_String
      (Value : Ada.Strings.Unbounded.Unbounded_String);
-   --  Reject a string which cannot be represented within version 1.
+   --  Reject a string which exceeds the unchanged protocol bounds.
 
    procedure Validate_Vector_Length
      (Length : Ada.Containers.Count_Type;
       Name   : String);
-   --  Reject a vector count beyond the version 1 bound.
+   --  Reject a vector count beyond the unchanged protocol bound.
 
    procedure Decode_Diagnostic
      (Data   :     Ada.Streams.Stream_Element_Array;
@@ -336,6 +336,9 @@ package body Spawn.Protocol is
         (Data   => Data,
          Cursor => Cursor,
          Stream => Decoded.Standard_Error);
+      if Decoded.Standard_Output.Mode = Merge_Stdout then
+         raise Request_Error with "stdout cannot refer to itself";
+      end if;
       Require_Remaining
         (Data    => Data,
          Cursor  => Cursor,
@@ -620,6 +623,9 @@ package body Spawn.Protocol is
                   Name  => "stream");
                Stream := (Mode => Truncate_File, Path => Path);
             end;
+         when 2 =>
+            Stream := (Mode => Merge_Stdout);
+            Cursor := Cursor + Stream_Mode_Size;
          when others =>
             raise Protocol_Error with "unknown stream mode";
       end case;
@@ -1072,6 +1078,9 @@ package body Spawn.Protocol is
       Validate_Absolute_Path
         (Value => Ada.Strings.Unbounded.To_String (Request.Directory),
          Name  => "directory");
+      if Request.Standard_Output.Mode = Merge_Stdout then
+         raise Request_Error with "stdout cannot refer to itself";
+      end if;
       Payload_Length := Payload_Length
         + Stream_Field_Length (Stream => Request.Standard_Output)
         + Stream_Field_Length (Stream => Request.Standard_Error);
@@ -1197,7 +1206,7 @@ package body Spawn.Protocol is
    begin
       Validate_Stream (Stream => Stream);
       case Stream.Mode is
-         when Null_Stream =>
+         when Null_Stream | Merge_Stdout =>
             return Stream_Mode_Size;
          when Truncate_File =>
             declare
@@ -1313,7 +1322,7 @@ package body Spawn.Protocol is
    is
    begin
       case Stream.Mode is
-         when Null_Stream =>
+         when Null_Stream | Merge_Stdout =>
             null;
          when Truncate_File =>
             Validate_String (Value => Stream.Path);

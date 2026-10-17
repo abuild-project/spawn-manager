@@ -914,6 +914,178 @@ package body Spawn.Pool.Tests is
 
    -------------------------------------------------------------------------
 
+   procedure Execute_Merged_Streams
+   is
+      Root : constant String := Ada.Directories.Current_Directory
+        & "/obj/shared ' output-" & Anet.Util.Random_String (Len => 8);
+      Output_Path : constant String := Root & "/output";
+      Created : Boolean := False;
+      Request : Spawn.Protocol.Exec_Request_Type;
+      Result : Spawn.Protocol.Result_Type;
+
+      function Read_Log (Path : String) return String;
+      --  Read actual completed log lines, including their terminating LF.
+
+      procedure Cleanup;
+      --  Shut down managers before removing only this test's owned directory.
+
+      procedure Cleanup
+      is
+      begin
+         Spawn.Pool.Cleanup;
+         if Created and then Ada.Directories.Exists (Root) then
+            Ada.Directories.Delete_Tree (Root);
+         end if;
+      end Cleanup;
+
+      function Read_Log (Path : String) return String
+      is
+         File : Ada.Text_IO.File_Type;
+         Text : Unbounded_String;
+      begin
+         Ada.Text_IO.Open
+           (File, Ada.Text_IO.In_File, Path, Form => "shared=no");
+         while not Ada.Text_IO.End_Of_File (File) loop
+            Append (Text, Ada.Text_IO.Get_Line (File) & ASCII.LF);
+         end loop;
+         Ada.Text_IO.Close (File);
+         return To_String (Text);
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (File) then
+               Ada.Text_IO.Close (File);
+            end if;
+            raise;
+      end Read_Log;
+   begin
+      Ada.Directories.Create_Directory (Root);
+      Created := True;
+      Spawn.Pool.Init (Manager_Path => Manager_Path, Manager_Count => 2);
+      Request.Executable := To_Unbounded_String ("/bin/sh");
+      Request.Directory := To_Unbounded_String ("/");
+      Request.Timeout := 2_000;
+      Request.Arguments.Append ("-c");
+      Request.Arguments.Append
+        ("printf 'stdout\n'; printf 'stderr\n' >&2; printf 'after\n'; exit 7");
+      Request.Standard_Error := (Mode => Spawn.Protocol.Merge_Stdout);
+      Request.Standard_Output := (Mode => Spawn.Protocol.Merge_Stdout);
+      Result := Spawn.Pool.Execute (Request);
+      Assert (Result.Kind = Spawn.Protocol.Request_Rejected,
+              "stdout self-reference was not rejected before dispatch");
+
+      Request.Standard_Output :=
+        (Mode => Spawn.Protocol.Truncate_File,
+         Path => To_Unbounded_String (Output_Path));
+      Result := Spawn.Pool.Execute (Request);
+      Assert (Result.Kind = Spawn.Protocol.Exited
+                and then Result.Exit_Status = 7,
+              "shared log changed exit status or prevented reuse");
+      Assert (Read_Log (Output_Path)
+                = "stdout" & ASCII.LF & "stderr" & ASCII.LF
+                  & "after" & ASCII.LF,
+              "shared log lost bytes or write order");
+
+      Request.Standard_Output := (Mode => Spawn.Protocol.Null_Stream);
+      Result := Spawn.Pool.Execute (Request);
+      Assert (Result.Kind = Spawn.Protocol.Exited
+                and then Result.Exit_Status = 7,
+              "shared null output failed");
+
+      Request.Standard_Output :=
+        (Mode => Spawn.Protocol.Truncate_File,
+         Path => To_Unbounded_String (Root & "/missing/log"));
+      Result := Spawn.Pool.Execute (Request);
+      Assert (Result.Kind = Spawn.Protocol.Spawn_Failed
+                and then Result.Failure.Stage = Spawn.Protocol.Open_Stdout,
+              "shared sink open failure has the wrong stage");
+
+      Request.Standard_Output :=
+        (Mode => Spawn.Protocol.Truncate_File,
+         Path => To_Unbounded_String (Output_Path));
+      Request.Arguments.Replace_Element
+        (2, "printf 'before timeout\n' >&2; exec /bin/sleep 60");
+      Request.Timeout := 1_000;
+      Result := Spawn.Pool.Execute (Request);
+      Assert (Result.Kind = Spawn.Protocol.Timed_Out,
+              "shared log changed timeout classification");
+      Assert (Read_Log (Output_Path) = "before timeout" & ASCII.LF,
+              "timeout discarded the shared diagnostic");
+
+      declare
+         --  Root is immutable. Each caller owns its request and output; the
+         --  child-side ready barrier requires both managers to be active.
+         task type Writer is
+            entry Start (Number : Positive);
+            entry Join (Success : out Boolean);
+         end Writer;
+
+         task body Writer
+         is
+            Index : Positive := 1;
+            Passed : Boolean := False;
+         begin
+            accept Start (Number : Positive) do
+               Index := Number;
+            end Start;
+            declare
+               Token : constant String := Ada.Strings.Fixed.Trim
+                 (Index'Image, Ada.Strings.Both);
+               Path : constant String := Root & "/parallel-" & Token;
+               Child_Request : Spawn.Protocol.Exec_Request_Type;
+               Child_Result : Spawn.Protocol.Result_Type;
+            begin
+               Child_Request.Executable := To_Unbounded_String ("/bin/sh");
+               Child_Request.Directory := To_Unbounded_String ("/");
+               Child_Request.Timeout := 2_000;
+               Child_Request.Standard_Output :=
+                 (Mode => Spawn.Protocol.Truncate_File,
+                  Path => To_Unbounded_String (Path));
+               Child_Request.Standard_Error :=
+                 (Mode => Spawn.Protocol.Merge_Stdout);
+               Child_Request.Arguments.Append ("-c");
+               Child_Request.Arguments.Append
+                 (": > ""$1/ready-$2""; while test ! -e ""$1/ready-1"""
+                  & " || test ! -e ""$1/ready-2""; do /bin/sleep 0.001; done;"
+                  & " printf 'out-%s\n' ""$2"";"
+                  & " printf 'err-%s\n' ""$2"" >&2");
+               Child_Request.Arguments.Append ("shared-fixture");
+               Child_Request.Arguments.Append (Root);
+               Child_Request.Arguments.Append (Token);
+               Child_Result := Spawn.Pool.Execute (Child_Request);
+               Passed := Child_Result.Kind = Spawn.Protocol.Exited
+                 and then Child_Result.Exit_Status = 0
+                 and then Read_Log (Path) = "out-" & Token & ASCII.LF
+                   & "err-" & Token & ASCII.LF;
+            exception
+               when others => Passed := False;
+            end;
+            accept Join (Success : out Boolean) do
+               Success := Passed;
+            end Join;
+         end Writer;
+
+         Writers : array (1 .. 2) of Writer;
+         Passed : Boolean;
+         All_Passed : Boolean := True;
+      begin
+         for I in Writers'Range loop
+            Writers (I).Start (I);
+         end loop;
+         for Worker of Writers loop
+            Worker.Join (Passed);
+            All_Passed := All_Passed and Passed;
+         end loop;
+         Assert (All_Passed, "parallel shared logs mixed or lost bytes");
+      end;
+      Cleanup;
+   exception
+      when others =>
+         Cleanup;
+         raise;
+   end Execute_Merged_Streams;
+
+   -------------------------------------------------------------------------
+
    procedure Execute_Nonexistent
    is
    begin
@@ -1401,6 +1573,9 @@ package body Spawn.Pool.Tests is
       T.Add_Test_Routine
         (Routine => Execute_Structured'Access,
          Name    => "Execute structured requests");
+      T.Add_Test_Routine
+        (Routine => Execute_Merged_Streams'Access,
+         Name    => "Share ordered structured output streams");
       T.Add_Test_Routine
         (Routine => Execute_Structured_Environment'Access,
          Name    => "Isolate structured environments");

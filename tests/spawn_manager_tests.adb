@@ -107,7 +107,7 @@ package body Spawn_Manager_Tests is
       declare
          Empty_Shell : constant Ada.Streams.Stream_Element_Array (1 .. 28)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#01#, 16#00#, 16#01#,
+               16#00#, 16#02#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#10#,
                16#00#, 16#00#, 16#00#, 16#00#,
                16#00#, 16#00#, 16#00#, 16#00#,
@@ -136,7 +136,7 @@ package body Spawn_Manager_Tests is
       declare
          Invalid : constant Ada.Streams.Stream_Element_Array (1 .. 12)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#02#, 16#00#, 16#01#,
+               16#00#, 16#01#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#00#);
          Result : Spawn.Protocol.Result_Type;
       begin
@@ -390,7 +390,7 @@ package body Spawn_Manager_Tests is
       declare
          Invalid : constant Ada.Streams.Stream_Element_Array (1 .. 12)
            := (16#53#, 16#50#, 16#57#, 16#4e#,
-               16#00#, 16#02#, 16#00#, 16#01#,
+               16#00#, 16#01#, 16#00#, 16#01#,
                16#00#, 16#00#, 16#00#, 16#00#);
          Result : Spawn.Protocol.Result_Type;
       begin

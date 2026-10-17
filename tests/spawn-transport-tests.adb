@@ -100,7 +100,7 @@ package body Spawn.Transport.Tests is
 
    Test_Frame : constant Ada.Streams.Stream_Element_Array (1 .. 13)
      := (16#53#, 16#50#, 16#57#, 16#4e#,
-         16#00#, 16#01#, 16#00#, 16#03#,
+         16#00#, 16#02#, 16#00#, 16#03#,
          16#00#, 16#00#, 16#00#, 16#01#,
          16#02#);
 

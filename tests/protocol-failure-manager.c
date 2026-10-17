@@ -67,11 +67,11 @@ int main(int argc, char *argv[])
 	 * stage bytes; the Ada decoder constants are not reused here.
 	 */
 	static const unsigned char protocol_failure_result[] = {
-		'S', 'P', 'W', 'N', 0, 1, 0, 3, 0, 0, 0, 9,
+		'S', 'P', 'W', 'N', 0, 2, 0, 3, 0, 0, 0, 9,
 		5, 0, 0, 0, 4, 's', 't', 'o', 'p'
 	};
 	unsigned char supervision_failure_result[] = {
-		'S', 'P', 'W', 'N', 0, 1, 0, 3, 0, 0, 0, 22,
+		'S', 'P', 'W', 'N', 0, 2, 0, 3, 0, 0, 0, 22,
 		3, 0, 17, 0, 0, 0, 5, 0, 0, 0, 11,
 		'c', 'o', 'n', 't', 'a', 'i', 'n', 'm', 'e', 'n', 't'
 	};

@@ -28,7 +28,10 @@ package Spawn.Protocol.Tests is
    type Testcase is new Ahven.Framework.Test_Case with null record;
 
    procedure Exec_Golden_Data;
-   --  Verify exact version 1 exec-request bytes and decoding.
+   --  Pin the complete independent-stream exec frame.
+
+   procedure Exec_Merged_Golden_Data;
+   --  Pin mode 2's exact pathless encoding and reject stdout self-reference.
 
    procedure Exec_Rejects_Invalid_Data;
    --  Verify malformed and semantically invalid exec requests are rejected.
@@ -40,7 +43,7 @@ package Spawn.Protocol.Tests is
    --  Verify fixed and active complete-frame bounds.
 
    procedure Header_Golden_Data;
-   --  Verify exact version 1 header bytes and decoding.
+   --  Verify exact version 2 header bytes and decoding.
 
    procedure Header_Rejects_Invalid_Data;
    --  Verify malformed magic, version, kind and header length rejection.
@@ -49,10 +52,10 @@ package Spawn.Protocol.Tests is
    --  Register protocol tests.
 
    procedure Result_Golden_Data;
-   --  Verify exact version 1 bytes for every result alternative.
+   --  Verify exact version 2 bytes for every result alternative.
 
    procedure Failure_Stage_Golden_Data;
-   --  Verify every version 1 spawn-failure stage number independently.
+   --  Verify every unchanged spawn-failure stage number independently.
 
    procedure Result_Rejects_Invalid_Data;
    --  Verify malformed and semantically invalid results are rejected.
@@ -61,7 +64,7 @@ package Spawn.Protocol.Tests is
    --  Verify every result alternative and the diagnostic boundary.
 
    procedure Shell_Golden_Data;
-   --  Verify exact version 1 shell-request bytes and decoding.
+   --  Verify exact version 2 shell-request bytes and decoding.
 
    procedure Shell_Rejects_Invalid_Data;
    --  Verify malformed and semantically invalid shell requests are rejected.

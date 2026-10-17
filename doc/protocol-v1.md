@@ -1,5 +1,8 @@
 # Spawn Manager protocol version 1
 
+This is the historical release-0.2.0 contract. Current development uses
+[protocol version 2](protocol-v2.md), not a dual-version compatibility mode.
+
 This document defines the byte-level protocol shared by the Spawn Manager
 library and executable. Version 1 has no handshake, capability negotiation,
 request identifiers or optional flags. A library and manager from one Abuild
@@ -12,7 +15,8 @@ rather than Ada characters. Strings retain their exact non-NUL bytes; the
 protocol applies no text encoding, shell quoting or normalization.
 
 The normative constants and field order are maintained in
-[`Spawn.Protocol`](../src/spawn-protocol.ads). Independent golden-byte tests
+[`Spawn.Protocol` at v0.2.0](https://github.com/abuild-project/spawn-manager/blob/v0.2.0/src/spawn-protocol.ads).
+Independent golden-byte tests
 pin both request variants, all result variants and every failure-stage value.
 
 ## Common frame
