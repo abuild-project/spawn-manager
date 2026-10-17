@@ -924,7 +924,7 @@ package body Spawn.Pool.Tests is
       Result : Spawn.Protocol.Result_Type;
 
       function Read_Log (Path : String) return String;
-      --  Read actual completed log lines, including their terminating LF.
+      --  Read log lines and normalize each line ending to LF.
 
       procedure Cleanup;
       --  Shut down managers before removing only this test's owned directory.
@@ -986,10 +986,15 @@ package body Spawn.Pool.Tests is
               "shared log lost bytes or write order");
 
       Request.Standard_Output := (Mode => Spawn.Protocol.Null_Stream);
+      Request.Arguments.Replace_Element
+        (2, "test -c /proc/self/fd/1 && test /proc/self/fd/1 -ef /dev/null"
+         & " && test -c /proc/self/fd/2"
+         & " && test /proc/self/fd/2 -ef /dev/null || exit 99;"
+         & " printf output; printf error >&2; exit 7");
       Result := Spawn.Pool.Execute (Request);
       Assert (Result.Kind = Spawn.Protocol.Exited
                 and then Result.Exit_Status = 7,
-              "shared null output failed");
+              "shared null output did not connect both descriptors to null");
 
       Request.Standard_Output :=
         (Mode => Spawn.Protocol.Truncate_File,

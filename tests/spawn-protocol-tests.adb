@@ -630,7 +630,7 @@ package body Spawn.Protocol.Tests is
          Golden   : Ada.Streams.Stream_Element_Array;
          Name     : String);
       --  Compare both encoding directions with one independently written
-      --  complete frame from the version 1 field table.
+      --  complete frame from the version 2 field table.
 
       procedure Check
         (Expected : Result_Type;

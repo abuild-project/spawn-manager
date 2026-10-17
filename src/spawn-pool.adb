@@ -903,10 +903,10 @@ package body Spawn.Pool is
          when Protocol.Protocol_Failed =>
             return True;
          when Protocol.Spawn_Failed =>
-            --  Version 1 retains the detailed stage but deliberately merges
-            --  the C core's internal and child-spawn result classes. These
-            --  stages can originate in manager-side supervision; fail closed
-            --  because the preceding request may not be contained or reaped.
+            --  The protocol keeps the detailed stage but merges internal and
+            --  child-spawn result classes. These stages can originate in
+            --  manager-side supervision; fail closed because the preceding
+            --  request may not be contained or reaped.
             case Result.Failure.Stage is
                when Protocol.No_Failure
                   | Protocol.Enable_Subreaper

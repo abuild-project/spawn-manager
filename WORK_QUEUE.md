@@ -2,7 +2,7 @@
 
 This is the maintained list of accepted follow-up work after the initial
 structured-execution delivery. It records concrete consumers and known
-boundaries without silently extending protocol version 1. Assign a ticket and
+boundaries without silently extending released protocols. Assign a ticket and
 define acceptance evidence before starting an item.
 
 ## Post-0.2.0 validation
@@ -17,16 +17,15 @@ define acceptance evidence before starting an item.
 
 ## Accepted follow-ups
 
-### Neutral GitHub organization
+### GitHub organization maintenance
 
-The canonical repository initially remains under its current personal GitHub
-namespace so the Codelabs redirect and upstream transition do not depend on a
-new governance decision. Reconsider a transfer to a neutral project
-organization after its permanent name, repository scope and at least two
-trusted organization owners are confirmed.
+The canonical repository now lives under `abuild-project`. Keep repository and
+Pages URLs, review applications and access permissions aligned with that
+organization rather than treating the completed transfer as pending work.
 
-Before a transfer, inventory repository and Pages URLs, Actions permissions,
-installed review applications, Dependabot, secrets and branch and tag rules.
+Before any later transfer, inventory repository and Pages URLs,
+Actions permissions, installed review applications, Dependabot,
+secrets, and branch and tag rules.
 Afterward, republish Pages, update the Codelabs redirect and verify web, clone,
 fetch, CI and release access through both the old and new repository URLs.
 
@@ -53,25 +52,25 @@ than pretending it is argv data.
 
 ### Explicit privilege-gaining execution
 
-Version 1 applies `no_new_privs` to every shell and structured request and has
-no exception. Add an opt-in only for a concrete transformation which requires
-privilege metadata during `execve`. Specify it in a new protocol contract and
-require cgroup containment because privileged exec may clear the direct
-leader's parent-death signal.
+Protocols 1 and 2 apply `no_new_privs` to every shell and structured request
+and have no exception. Add an opt-in only for a concrete transformation which
+requires privilege metadata during `execve`. Specify it in a new protocol
+contract and require cgroup containment because privileged exec may clear the
+direct leader's parent-death signal.
 
 ### Individual request cancellation
 
-Version 1 cancels the complete pool through `Cleanup`; it has no request
-identifier or single-request cancel operation. Add this only for a concrete
-concurrent consumer. Define identity, races, result classification and manager
-reuse before choosing a wire format.
+Protocols 1 and 2 cancel the complete pool through `Cleanup`; they have no
+request identifier or single-request cancel operation. Add this only for a
+concrete concurrent consumer. Define identity, races, result classification
+and manager reuse before choosing a wire format.
 
 ### Descriptor-ceiling fallbacks
 
 A failed `/proc/self/fd` scan with a finite soft descriptor limit selects and
 caches that limit. If the limit is `RLIM_INFINITY`, the current implementation
 consults `sysconf(_SC_OPEN_MAX)`; its result is not yet an accepted portable
-version-1 contract. Add fault injection for an unlimited limit with both
+protocol-1/2 contract. Add fault injection for an unlimited limit with both
 procfs and `close_range` unavailable. The request must fail at descriptor
 closure instead of attempting an effectively unbounded sweep.
 

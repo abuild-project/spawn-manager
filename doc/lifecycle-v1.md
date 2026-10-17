@@ -1,9 +1,11 @@
 # Spawn Manager lifecycle version 1
 
-This document defines the process ownership, cancellation and containment
-contract of Spawn Manager version 1. The public API is declared in
-[`Spawn.Pool`](../src/spawn-pool.ads); the request and result encoding is
-defined by [protocol version 1](protocol-v1.md).
+This document defines lifecycle contract version 1: process ownership,
+cancellation and containment. The unchanged lifecycle contract applies to wire
+protocol versions 1 and 2; its version is independent of the wire version.
+The public API is declared in [`Spawn.Pool`](../src/spawn-pool.ads). Current
+request and result encoding is defined by [protocol version 2](protocol-v2.md);
+[protocol version 1](protocol-v1.md) describes the historical 0.2.0 wire format.
 
 ## Pool and leases
 
@@ -52,9 +54,9 @@ Leader and descendant reaping after termination have fixed grace-period
 deadlines. An uninterruptible child therefore fail-stops its manager instead
 of blocking pool cancellation indefinitely.
 
-Version 1 has no independent single-request cancellation operation.
-`Spawn.Pool.Cleanup` stops new leases, interrupts all managers, waits for
-active callers to leave and cancels the complete pool.
+This lifecycle contract has no independent cancellation of a single request.
+`Spawn.Pool.Cleanup` stops new leases, interrupts all managers, waits for active
+callers to leave and cancels the complete pool.
 
 ## Privilege and descendant containment
 
@@ -63,7 +65,7 @@ Set-user-ID, set-group-ID and file-capability metadata cannot grant the child
 new privileges or clear that signal during `execve`. The restriction is
 inherited by shell children and structured-exec descendants.
 
-This is a deliberate version-1 compatibility boundary with no opt-out. A
+This is a deliberate lifecycle compatibility boundary with no opt-out. A
 future exception requires a concrete consumer, an explicit request contract
 and cgroup containment because a privileged exec can clear the direct
 leader's parent-death signal.
@@ -77,7 +79,7 @@ group signal requires separately selected cgroup containment.
 
 Cgroup containment is also required for descendants left by uncatchable
 manager loss such as `SIGKILL` or OOM, and for a descendant that deliberately
-escapes with `setpgid()` or `setsid()`. Version 1 does not claim those cases
+escapes with `setpgid()` or `setsid()`. This contract does not claim those cases
 from its process-group fallback alone.
 
 ## Signal and fork boundary
@@ -102,7 +104,7 @@ group supervision.
 The manager binds its descriptor ceiling to `/proc/self/fd` only after a
 complete scan. An open, read or close error with a finite soft descriptor
 limit selects that limit before `fork`. With `RLIM_INFINITY`, the
-implementation consults `sysconf(_SC_OPEN_MAX)` instead; version 1 does not
+implementation consults `sysconf(_SC_OPEN_MAX)` instead; this contract does not
 claim portable support for an effectively unbounded result. If no usable
 finite ceiling exists and `close_range` is unavailable, the child reports the
 pre-exec `Close_Descriptors` stage instead of proceeding to `execve`. The Work
@@ -126,11 +128,11 @@ socket-path cleanup after the manager has terminated.
 
 ## Failure classification
 
-Version 1 reports internal and child-spawn failures through one result kind.
+Protocols 1 and 2 use one result kind for internal and child-spawn failures.
 Stages that can represent manager-side supervision poison the complete pool,
 including ambiguous error-pipe and process-group failures. This also includes
 manager-side signal-mask restoration failures reported as `Reset_Signals`.
 
 Stages that can only represent child-side pre-exec failures remain reusable.
 The exact stage encoding is part of the
-[protocol result format](protocol-v1.md#result).
+[current protocol result format](protocol-v2.md#result).

@@ -509,6 +509,27 @@ static int fixture_merged_output(void)
 	return 7;
 }
 
+/* Check the actual null-device identities, not merely a successful write. */
+static int fixture_null_output(void)
+{
+	struct stat expected;
+	struct stat output;
+	struct stat error;
+
+	require(stat("/dev/null", &expected) == 0 && S_ISCHR(expected.st_mode),
+		"stat expected null device");
+	require(fstat(STDOUT_FILENO, &output) == 0
+		&& S_ISCHR(output.st_mode) && output.st_rdev == expected.st_rdev,
+		"stdout is not the null device");
+	require(fstat(STDERR_FILENO, &error) == 0
+		&& S_ISCHR(error.st_mode) && error.st_rdev == expected.st_rdev,
+		"stderr is not the null device");
+	require(write_repeated(STDOUT_FILENO, 16, 'o') == 0
+		&& write_repeated(STDERR_FILENO, 16, 'e') == 0,
+		"write to shared null output");
+	return 0;
+}
+
 /* Dispatch the fixture only after exec, outside the restricted fork window. */
 static int fixture(int argc, char *argv[], char *envp[])
 {
@@ -518,6 +539,8 @@ static int fixture(int argc, char *argv[], char *envp[])
 		return fixture_verify(argc, argv, envp);
 	if (strcmp(argv[2], "merged") == 0)
 		return fixture_merged_output();
+	if (strcmp(argv[2], "null-output") == 0)
+		return fixture_null_output();
 	if (strcmp(argv[2], "exit37") == 0)
 		return 37;
 	if (strcmp(argv[2], "signal") == 0) {
@@ -845,7 +868,7 @@ static void test_merged_output(const char *self, const char *output_path)
 	char *empty_environment[] = { NULL };
 	char *arguments[] = { (char *)self, "fixture", "merged", NULL };
 	char *null_arguments[] = {
-		"/bin/sh", "-c", "printf output; printf error >&2", NULL
+		(char *)self, "fixture", "null-output", NULL
 	};
 	struct spawn_posix_result result;
 	struct stat status;
@@ -854,8 +877,9 @@ static void test_merged_output(const char *self, const char *output_path)
 	int descriptor;
 
 	memset(stale, 'x', sizeof(stale));
-	descriptor = open(output_path, O_WRONLY | O_TRUNC);
+	descriptor = open(output_path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	require(descriptor >= 0, "open stale shared log");
+	require(fchmod(descriptor, 0600) == 0, "prepare private shared log mode");
 	require(write(descriptor, stale, sizeof(stale)) == (ssize_t)sizeof(stale),
 		"write stale shared log");
 	require(close(descriptor) == 0, "close stale shared log");
@@ -870,7 +894,7 @@ static void test_merged_output(const char *self, const char *output_path)
 	free(content);
 	require(stat(output_path, &status) == 0
 		&& (status.st_mode & 0777) == 0600, "shared log mode changed");
-	require(spawn_posix_execute("/bin/sh", null_arguments, 0,
+	require(spawn_posix_execute(self, null_arguments, 0,
 		empty_environment, "/", SPAWN_POSIX_NULL_STREAM, NULL,
 		SPAWN_POSIX_MERGE_STDOUT, NULL, 1000, &result) == 0,
 		"merge stderr with null stdout");

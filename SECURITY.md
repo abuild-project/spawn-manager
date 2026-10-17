@@ -54,7 +54,7 @@ through, so Spawn Manager must preserve their documented boundaries exactly.
 - Pool sockets remain private, correctly owned and safely cleaned up.
 - Structured requests preserve exact arguments and replacement environments
   without shell parsing.
-- Version 1 applies `no_new_privs` to every request child.
+- Protocol versions 1 and 2 apply `no_new_privs` to every request child.
 - Unexpected descriptors are not inherited by request children.
 - Signal state is normalized without losing manager or child observability.
 - Each request has a supervised process group with bounded termination and
@@ -74,7 +74,8 @@ Examples include:
 - unintended descriptor or sensitive environment inheritance;
 - failure to terminate or reap processes which remain within the documented
   process-group or caller-supplied cgroup containment boundary;
-- privilege gain despite the version 1 `no_new_privs` contract;
+- privilege gain despite the `no_new_privs` contract in protocol versions
+  1 and 2;
 - unsafe post-fork behavior in the multithreaded caller boundary;
 - reuse of a manager whose supervision or lifecycle state is uncertain;
 - argument, environment, stream or working-directory confusion that crosses a
@@ -106,9 +107,9 @@ realistic security impact should be reported through a public issue.
 The local Unix socket is not an authorization boundary against other code
 already running with the same operating-system identity.
 
-Version 1 has no privilege-gaining execution mode and no individual-request
-cancellation operation. Cgroup placement is supplied by trusted caller
-callbacks and is not part of the wire protocol.
+Protocol versions 1 and 2 have no privilege-gaining execution mode and no
+individual-request cancellation operation. Cgroup placement is supplied by
+trusted caller callbacks and is not part of the wire protocol.
 
 Anet owns socket lifecycle and addressing. Spawn Manager owns frame encoding,
 exact transfer, validation, deadlines and protocol-failure classification.

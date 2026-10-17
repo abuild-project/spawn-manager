@@ -117,16 +117,16 @@ its mode. A caller needing owner-only output should create the file with mode
 Stdout is installed first. `Merge_Stdout` on stderr duplicates fd 1 to fd 2,
 sharing the same open file description and write position. The file is opened
 and truncated only once, and stdout remains open. A null stdout gives stderr
-the same null sink. Mode 2 has no path field; a stdout self-reference is rejected.
-Equal truncate paths never select this policy implicitly.
+the same null sink. Mode 2 has no path field; a stdout self-reference is
+rejected. Equal truncate paths never select this policy implicitly.
 
 This matches shell `> log 2>&1` at the descriptor level. It preserves the order
 of writes reaching the shared sink, not the order of application-side stdio
 buffers or atomic multi-line messages from concurrent writers. Separate
 capture files joined later cannot implement this contract. Append, named
 stdin, privilege exceptions and individual cancellation are not added.
-The [version-1 lifecycle](lifecycle-v1.md) remains unchanged; stdout-open and
-stderr-duplication failures retain the existing stages and errno.
+The [lifecycle contract version 1](lifecycle-v1.md) remains unchanged, as do
+failure stages and errno for stdout-open and stderr-duplication errors.
 
 ## Result
 
