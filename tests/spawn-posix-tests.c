@@ -1306,14 +1306,61 @@ static void *run_threaded_termination(void *argument)
 	return NULL;
 }
 
-/* Exercise the publication race inside one disposable manager process. */
-static void run_threaded_group_publication(const char *self)
+/* Wait for flushed descendant metadata at a freshly removed fixture path. */
+static void wait_for_fixture_output(const char *path)
 {
-	struct threaded_execution execution = { .self = self };
+	struct timespec pause = { 0, 10 * 1000 * 1000 };
+	struct stat status;
+	int ready = 0;
+
+	for (int attempt = 0; attempt < 500; ++attempt) {
+		if (stat(path, &status) == 0 && status.st_size > 0) {
+			ready = 1;
+			break;
+		}
+		(void)nanosleep(&pause, NULL);
+	}
+	require(ready, "publication fixture did not create a descendant");
+}
+
+/* Bound recovery, then report adoption so cleanup cannot hide a test leak. */
+static int recover_adopted_children(void)
+{
+	struct timespec pause = { 0, 10 * 1000 * 1000 };
+	pid_t adopted;
+	int child_status;
+	int recovered_child = 0;
+
+	for (int attempt = 0; attempt < 500; ++attempt) {
+		adopted = __real_waitpid(-1, &child_status, WNOHANG);
+		if (adopted < 0 && errno == ECHILD)
+			break;
+		require(adopted >= 0 || errno == EINTR,
+			"supervisor recovery failed");
+		if (adopted > 0)
+			recovered_child = 1;
+		(void)nanosleep(&pause, NULL);
+	}
+	require(adopted < 0 && errno == ECHILD,
+		"supervisor left an adopted child");
+	return recovered_child;
+}
+
+/* Exercise publication with a real descendant, not a host-speed assumption. */
+static void run_threaded_group_publication(
+	const char *self,
+	const char *pid_path)
+{
+	struct threaded_execution execution = {
+		.self = self, .output_path = pid_path
+	};
 	pthread_t execution_thread;
 	pthread_t termination_thread;
 	struct timespec pause = { 0, 10 * 1000 * 1000 };
 
+	/* fork inherits the core cache, but not the kernel subreaper setting. */
+	require(prctl(PR_SET_CHILD_SUBREAPER, 1) == 0,
+		"enable publication supervisor subreaper");
 	wrapper_owner = getpid();
 	atomic_store(&pause_parent_after_fork, 1);
 	atomic_store(&parent_fork_paused, 0);
@@ -1328,6 +1375,7 @@ static void run_threaded_group_publication(const char *self)
 		(void)nanosleep(&pause, NULL);
 	require(atomic_load(&parent_fork_paused),
 		"threaded execution did not reach the fork barrier");
+	wait_for_fixture_output(pid_path);
 	require(pthread_create(
 		&termination_thread, NULL, run_threaded_termination, NULL) == 0,
 		"create threaded termination");
@@ -1352,23 +1400,33 @@ static void run_threaded_group_publication(const char *self)
 }
 
 /* Prove shutdown cannot pass the fork-to-group-publication window. */
-static void test_threaded_group_publication(const char *self)
+static void test_threaded_group_publication(
+	const char *self,
+	const char *pid_path)
 {
 	pid_t supervisor;
 	int supervisor_status;
+	int recovered_child;
 
+	require(prctl(PR_SET_CHILD_SUBREAPER, 1) == 0,
+		"enable publication recovery subreaper");
+	require(unlink(pid_path) == 0 || errno == ENOENT,
+		"reset publication pid file");
 	supervisor = fork();
 	require(supervisor >= 0, "fork threaded publication supervisor");
 	if (supervisor == 0) {
-		run_threaded_group_publication(self);
+		run_threaded_group_publication(self, pid_path);
 		_exit(0);
 	}
 	require(__real_waitpid(
 		supervisor, &supervisor_status, 0) == supervisor,
 		"wait for threaded publication supervisor");
+	recovered_child = recover_adopted_children();
 	require(WIFEXITED(supervisor_status)
 		&& WEXITSTATUS(supervisor_status) == 0,
 		"threaded publication supervisor failed");
+	require(!recovered_child,
+		"publication supervisor left an adopted child");
 	pass("threaded shutdown waits for request-group publication");
 }
 
@@ -1449,11 +1507,8 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 		"enable reaping recovery subreaper");
 	for (int stall = 0; stall < 2; ++stall) {
 		pid_t supervisor = fork();
-		pid_t adopted;
 		int status;
-		int child_status;
-		int recovered_child = 0;
-		struct timespec pause = { 0, 10 * 1000 * 1000 };
+		int recovered_child;
 
 		require(supervisor >= 0, "fork reaping supervisor");
 		if (supervisor == 0) {
@@ -1463,18 +1518,7 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 		require(__real_waitpid(supervisor, &status, 0) == supervisor,
 			"wait for reaping supervisor");
 		/* A fail-stop can leave killed children; own and reap those here. */
-		for (int attempt = 0; attempt < 500; ++attempt) {
-			adopted = __real_waitpid(-1, &child_status, WNOHANG);
-			if (adopted < 0 && errno == ECHILD)
-				break;
-			require(adopted >= 0 || errno == EINTR,
-				"reaping supervisor recovery failed");
-			if (adopted > 0)
-				recovered_child = 1;
-			(void)nanosleep(&pause, NULL);
-		}
-		require(adopted < 0 && errno == ECHILD,
-			"reaping supervisor left an adopted child");
+		recovered_child = recover_adopted_children();
 		require(WIFEXITED(status) && WEXITSTATUS(status)
 			== (stall ? CONTAINMENT_EXIT_STATUS : 0),
 			"shutdown reap acknowledgement or bound failed");
@@ -1621,7 +1665,7 @@ int main(int argc, char *argv[], char *envp[])
 	require(unlink(pid_path) == 0, "reset descendant pid file");
 	test_success_group_cleanup(self, pid_path);
 	test_child_signal_dispositions(fifo_path);
-	test_threaded_group_publication(self);
+	test_threaded_group_publication(self, pid_path);
 	test_threaded_reaping(self, pid_path);
 
 	require(close(inherited_fd) == 0 && close(source_fd) == 0,
