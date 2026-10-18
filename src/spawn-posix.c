@@ -48,6 +48,7 @@
 #define DESCRIPTOR_CEILING_UNINITIALIZED -2
 #define POLL_SLICE_MS 10
 #define TERMINATION_GRACE_MS 100
+#define SHUTDOWN_REAP_WAIT_MS 1000
 
 /*
  * ERROR_FD is the sole descriptor intentionally kept across child setup. The
@@ -68,6 +69,12 @@ extern char **environ;
 static pthread_mutex_t group_state_lock = PTHREAD_MUTEX_INITIALIZER;
 static pid_t active_group;
 static int shutdown_requested;
+/*
+ * Protected by group_state_lock. Unlike the process-group identity this stays
+ * set after leader retirement until descendant reaping has also completed.
+ * The interrupt task waits on this acknowledgement, never on a reusable PGID.
+ */
+static int request_in_progress;
 
 /*
  * The manager opens every persistent descriptor before its request loop.
@@ -680,13 +687,11 @@ static int terminate_group(
 }
 
 /*
- * GNAT interrupt-task hook: prevent a later fork, kill the currently published
- * request group and preserve errno. The Ada handler exits the manager after
- * this returns; normal execution remains the sole reaper meanwhile.
+ * Prevent a later fork and kill the still-pinned request group. Do not wait:
+ * executor-side fail-stop also uses this hook and must not await itself.
  */
-void spawn_posix_terminate_current(void)
+static void request_shutdown(void)
 {
-	int saved_errno = errno;
 	pid_t group;
 
 	lock_group_state();
@@ -695,6 +700,48 @@ void spawn_posix_terminate_current(void)
 	if (group > 0)
 		(void)kill(-group, SIGKILL);
 	unlock_group_state();
+}
+
+/*
+ * Let the sole executor finish reaping without holding its ownership mutex.
+ * A fixed one-second deadline stays below the pool's three-second wait; a
+ * stalled executor fail-stops rather than deadlocking an interrupt-server task.
+ */
+static void wait_for_request_reaping(void)
+{
+	int64_t started = monotonic_milliseconds();
+	int64_t deadline;
+
+	if (started < 0)
+		_exit(CONTAINMENT_FAILURE_EXIT);
+	deadline = started > INT64_MAX - SHUTDOWN_REAP_WAIT_MS
+		? INT64_MAX : started + SHUTDOWN_REAP_WAIT_MS;
+	for (;;) {
+		int pending;
+		struct timespec pause = { 0, POLL_SLICE_MS * 1000 * 1000 };
+
+		lock_group_state();
+		pending = request_in_progress;
+		unlock_group_state();
+		if (!pending)
+			return;
+		if (remaining_milliseconds(deadline) == 0)
+			_exit(CONTAINMENT_FAILURE_EXIT);
+		(void)nanosleep(&pause, NULL);
+	}
+}
+
+/*
+ * GNAT interrupt-task hook: prevent another fork, kill the published group and
+ * await the executor's final reap before the Ada handler exits the manager.
+ * Waiting uses no Ada runtime or competing waitpid owner and preserves errno.
+ */
+void spawn_posix_terminate_current(void)
+{
+	int saved_errno = errno;
+
+	request_shutdown();
+	wait_for_request_reaping();
 	errno = saved_errno;
 }
 
@@ -820,6 +867,7 @@ int spawn_posix_execute(
 	if (setpgid(pid, pid) < 0 && errno != EACCES && errno != ESRCH)
 		group_setup_error = errno;
 	active_group = pid;
+	request_in_progress = 1;
 	unlock_group_state();
 	if (set_manager_signal_mask(
 		SIG_SETMASK, &original_signal_mask, NULL) < 0) {
@@ -978,7 +1026,7 @@ cleanup:
 	}
 	if (containment_failed) {
 		/* Never resume the manager after losing request-group ownership. */
-		spawn_posix_terminate_current();
+		request_shutdown();
 		_exit(CONTAINMENT_FAILURE_EXIT);
 	}
 	if (manager_signals_blocked
@@ -990,6 +1038,8 @@ cleanup:
 		unlock_group_state();
 		_exit(CONTAINMENT_FAILURE_EXIT);
 	}
+	/* All leader and descendant waits precede this shutdown acknowledgement. */
+	request_in_progress = 0;
 	unlock_group_state();
 	if (pidfd >= 0)
 		(void)close(pidfd);

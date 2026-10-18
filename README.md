@@ -98,7 +98,7 @@ Building Spawn Manager requires:
 - GNU Make.
 
 The tests additionally require
-[Ahven](https://www.stronglytyped.org/ahven/), Bash
+[Ahven](https://www.stronglytyped.org/ahven/), Bash, Python 3
 and standard Linux process utilities. Coverage needs `lcov` and `genhtml`.
 Building the optional HTML documentation requires
 [Pandoc](https://pandoc.org/).
@@ -118,6 +118,12 @@ its process and log ordering remains deterministic:
 ```sh
 make tests
 ```
+
+The signal integration check uses its own fallback subreaper. It detects
+children abandoned by a terminated manager even when a container init would
+otherwise collect them. Shell and structured requests exercise both SIGINT
+and SIGTERM; direct C fault tests also cover delayed and stalled reaping.
+A fixture self-test checks recovery across newly adopted generations.
 
 Run the comparative execution benchmarks:
 

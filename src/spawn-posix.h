@@ -95,12 +95,13 @@ int spawn_posix_execute(
 	struct spawn_posix_result *result);
 
 /*
- * Kill the active request group, if any.
+ * Kill the active request group, if any, and await its executor's final reap.
  *
  * This function is called by GNAT's SIGINT/SIGTERM interrupt-server task. It
  * synchronizes through a process-local mutex with fork publication and exact
  * leader reaping; it is not a raw POSIX signal handler. The normal execute path
- * remains the sole reaper.
+ * remains the sole reaper, including descendants after leader retirement.
+ * A stalled executor fail-stops the manager after a one-second reap wait.
  */
 void spawn_posix_terminate_current(void);
 
