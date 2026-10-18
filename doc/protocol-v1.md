@@ -16,8 +16,12 @@ protocol applies no text encoding, shell quoting or normalization.
 
 The normative constants and field order are maintained in
 [`Spawn.Protocol` at v0.2.0](https://github.com/abuild-project/spawn-manager/blob/v0.2.0/src/spawn-protocol.ads).
-Independent golden-byte tests
-pin both request variants, all result variants and every failure-stage value.
+
+The release URL deliberately preserves the V1 source. Relative source links
+follow the current checkout on GitHub and map to `master` on the Pages site.
+
+Independent golden-byte tests pin both request variants, all result variants
+and every failure-stage value.
 
 ## Common frame
 
