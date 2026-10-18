@@ -16,6 +16,8 @@ Gitlink even when the two Spawn Manager commits are not direct ancestors.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-18
+
 ### Added
 
 - Added fixed protocol 2 and an explicit stderr-to-stdout stream policy. Stdout

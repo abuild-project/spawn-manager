@@ -29,9 +29,10 @@ execution core. There is no intermediate `spawn_wrapper` process.
 
 ## Status and platform
 
-The latest stable release is **0.2.0**. This development revision adds protocol
-2 with shared output and requires its matching library and manager. It retains
-the existing shell API. Changes are collected in the
+The latest stable release is **0.3.0**. It uses fixed protocol 2 with shared
+output and requires its matching library and manager. Protocol 1 remains
+historical, without negotiation or compatibility fallback. The existing shell
+API is retained. Changes are collected in the
 [changelog](CHANGELOG.md); accepted later work is tracked in the
 [work queue](WORK_QUEUE.md).
 
