@@ -1400,6 +1400,9 @@ static void run_threaded_reaping(
 
 	/* Alarm is recovery only; an exhausted production deadline exits 125. */
 	alarm(5);
+	/* fork copies the core's cache, but not Linux's subreaper setting. */
+	require(prctl(PR_SET_CHILD_SUBREAPER, 1) == 0,
+		"enable reaping supervisor subreaper");
 	wrapper_owner = getpid();
 	atomic_store(&pause_group_reap_once, 1);
 	atomic_store(&group_reap_paused, 0);
@@ -1441,11 +1444,15 @@ static void run_threaded_reaping(
 /* Assert the post-retirement wait and its fail-stop bound in fresh managers. */
 static void test_threaded_reaping(const char *self, const char *pid_path)
 {
+	/* Own failed supervisors' descendants without hiding successful leaks. */
+	require(prctl(PR_SET_CHILD_SUBREAPER, 1) == 0,
+		"enable reaping recovery subreaper");
 	for (int stall = 0; stall < 2; ++stall) {
 		pid_t supervisor = fork();
 		pid_t adopted;
 		int status;
 		int child_status;
+		int recovered_child = 0;
 		struct timespec pause = { 0, 10 * 1000 * 1000 };
 
 		require(supervisor >= 0, "fork reaping supervisor");
@@ -1462,6 +1469,8 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 				break;
 			require(adopted >= 0 || errno == EINTR,
 				"reaping supervisor recovery failed");
+			if (adopted > 0)
+				recovered_child = 1;
 			(void)nanosleep(&pause, NULL);
 		}
 		require(adopted < 0 && errno == ECHILD,
@@ -1469,6 +1478,10 @@ static void test_threaded_reaping(const char *self, const char *pid_path)
 		require(WIFEXITED(status) && WEXITSTATUS(status)
 			== (stall ? CONTAINMENT_EXIT_STATUS : 0),
 			"shutdown reap acknowledgement or bound failed");
+		/* Only the deliberately stalled fail-stop may need outer recovery. */
+		require(recovered_child == stall,
+			stall ? "stalled supervisor left no recovery child"
+			: "successful supervisor left an adopted child");
 		pass(stall ? "stalled shutdown reaping fail-stops within its bound"
 			: "shutdown waits beyond process-group identity retirement");
 	}
