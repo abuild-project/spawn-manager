@@ -5,7 +5,7 @@ structured-execution delivery. It records concrete consumers and known
 boundaries without silently extending released protocols. Assign a ticket and
 define acceptance evidence before starting an item.
 
-## Post-0.2.0 validation
+## Post-release validation
 
 - Complete the remaining native performance measurements on every release
   architecture and retain paired shell, structured-manager and direct-core
@@ -13,7 +13,7 @@ define acceptance evidence before starting an item.
 - Continue validating the released revision through Abuild's recursive
   checkout, archive, install, reference-product and user-interrupt system
   tests. Record any discovered defect for a patch release rather than moving
-  the version 1 contract silently.
+  released wire contracts silently.
 
 ## Accepted follow-ups
 
@@ -36,9 +36,10 @@ both at one pathname would open and truncate it twice and would not preserve
 the historical ordered combined build log, so component `make` remains an
 intentional shell caller.
 
-V2 development implements `Merge_Stdout` for stderr. The released version-1
-wire contract remains unchanged.
-Deliver the dependency before the Make caller step. Preserve
+Release 0.3.0 provides `Merge_Stdout` for stderr, removing this limitation.
+The historical version-1 wire contract remains unchanged; protocol 2 requires
+its matching library and manager.
+Adopt the dependency before the Make caller step. Preserve
 ordered stdout/stderr, cgroup placement, complete argv logging and Ctrl-C
 cleanup, then migrate `make -s -jN -C PATH` to structured execution.
 

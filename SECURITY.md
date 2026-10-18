@@ -4,9 +4,9 @@
 
 | Version or branch | Supported |
 | --- | --- |
-| Latest `0.2.x` release | Yes |
+| Latest stable release | Yes |
 | `master` before the next release | Best effort |
-| `0.1.x` releases | No |
+| Older releases | No |
 | Historical and archive branches | No |
 
 Security fixes are released from the protected `master` branch. Historical
