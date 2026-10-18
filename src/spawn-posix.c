@@ -402,7 +402,7 @@ static void child_exec(
 	}
 	reset_signal_mask();
 
-	/* Install the version-1 stdin, stdout and stderr contract. */
+	/* Install stdin and stdout before resolving stderr's optional alias. */
 	null_fd = open("/dev/null", O_RDWR | O_CLOEXEC);
 	if (null_fd < 0)
 		report_child_error(SPAWN_POSIX_OPEN_STDIN);
@@ -418,13 +418,21 @@ static void child_exec(
 	if (output_fd != null_fd && output_fd != STDOUT_FILENO)
 		(void)close(output_fd);
 
-	output_fd = stderr_mode == SPAWN_POSIX_NULL_STREAM
-		? null_fd : open_output_file(stderr_mode, stderr_path);
+	/* Duplicating fd 1 shares its open file description and write position.
+	 * Reopening stdout_path would truncate twice and lose ordered log bytes.
+	 */
+	if (stderr_mode == SPAWN_POSIX_MERGE_STDOUT)
+		output_fd = STDOUT_FILENO;
+	else if (stderr_mode == SPAWN_POSIX_NULL_STREAM)
+		output_fd = null_fd;
+	else
+		output_fd = open_output_file(stderr_mode, stderr_path);
 	if (output_fd < 0)
 		report_child_error(SPAWN_POSIX_OPEN_STDERR);
 	if (duplicate_to(output_fd, STDERR_FILENO) < 0)
 		report_child_error(SPAWN_POSIX_DUP_STDERR);
-	if (output_fd != null_fd && output_fd != STDERR_FILENO)
+	if (output_fd != null_fd && output_fd != STDERR_FILENO
+	    && output_fd != STDOUT_FILENO)
 		(void)close(output_fd);
 	if (null_fd > STDERR_FILENO)
 		(void)close(null_fd);

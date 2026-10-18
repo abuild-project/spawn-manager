@@ -29,7 +29,7 @@ with Interfaces;
 
 package Spawn.Protocol is
 
-   --  Version 1 wire format
+   --  Version 2 wire format
    --
    --  All offsets below are zero-based byte offsets. Integers are unsigned
    --  big-endian unless marked i64. Lengths count payload bytes, not Ada
@@ -38,7 +38,7 @@ package Spawn.Protocol is
    --    Common frame header (12 bytes)
    --
    --      0  u8[4]  magic "SPWN"
-   --      4  u16    protocol version, fixed value 1
+   --      4  u16    protocol version, fixed value 2
    --      6  u16    message kind: 1 shell, 2 exec, 3 result
    --      8  u32    payload length, excluding this header
    --
@@ -48,6 +48,8 @@ package Spawn.Protocol is
    --      vector  := u32 element_count, element[element_count]
    --      stream  := u8 mode, where 0 is /dev/null and 1 is followed by
    --                 one absolute-path string opened with truncate semantics
+   --                 Mode 2 has no path and duplicates stdout for stderr;
+   --                 it is never legal in the stdout position.
    --      timeout := i64 two's-complement milliseconds; -1 means unlimited
    --
    --    Shell request payload (message kind 1)
@@ -75,7 +77,7 @@ package Spawn.Protocol is
    --      i64    timeout
    --
    --    Exec requests replace the complete environment; a zero count means
-   --    an empty environment. Standard input is always /dev/null in version 1.
+   --    an empty environment. Standard input remains /dev/null in version 2.
    --
    --    Result payload (message kind 3)
    --
@@ -115,7 +117,7 @@ package Spawn.Protocol is
          Character'Pos ('P'),
          Character'Pos ('W'),
          Character'Pos ('N'));
-   Protocol_Version        : constant Interfaces.Unsigned_16 := 1;
+   Protocol_Version        : constant Interfaces.Unsigned_16 := 2;
 
    Maximum_Frame_Size      : constant := 128 * 1024;
    Maximum_String_Size     : constant := 64 * 1024;
@@ -152,14 +154,14 @@ package Spawn.Protocol is
      (Index_Type   => Positive,
       Element_Type => Environment_Entry_Type);
 
-   type Stream_Mode is (Null_Stream, Truncate_File);
+   type Stream_Mode is (Null_Stream, Truncate_File, Merge_Stdout);
    --  Wire values are the zero-based positions fixed in the format above.
 
    type Stream_Specification_Type
      (Mode : Stream_Mode := Null_Stream)
    is record
       case Mode is
-         when Null_Stream =>
+         when Null_Stream | Merge_Stdout =>
             null;
          when Truncate_File =>
             Path : Ada.Strings.Unbounded.Unbounded_String;

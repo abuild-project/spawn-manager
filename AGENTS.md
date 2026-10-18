@@ -17,8 +17,10 @@ caller and the dedicated process manager.
 
 - Use `README.md` for the component overview, supported platform and normal
   build, test and installation commands.
-- Read `doc/protocol-v1.md` when changing request or result fields, validation,
-  transport bounds or stream handling.
+- Read `doc/protocol-v2.md` when changing request or result fields, validation,
+  transport bounds or stream handling. It defines the current fixed version.
+- Use `doc/protocol-v1.md` only for comparison with the historical 0.2.0 wire
+  contract, not as a current compatibility mode.
 - Read `doc/lifecycle-v1.md` when changing processes, descriptors, signals,
   timeouts, cancellation, cgroup callbacks or pool cleanup.
 - Update `CHANGELOG.md` for user- or integrator-visible changes. Keep planned
@@ -112,8 +114,9 @@ caller and the dedicated process manager.
 - The command-string API retains `/bin/bash -o pipefail -c` behavior and the
   manager environment. Structured requests retain exact executable, argument,
   replacement-environment, working-directory, stream and result semantics.
-- Protocol version 1 is fixed and fail-closed. Wire changes require an explicit
-  new version, updated format documentation and independent golden-byte tests.
+- Each protocol version is fixed and fail-closed. Wire changes require an
+  explicit new version, updated format documentation and independent
+  golden-byte tests.
 - The post-`fork` child enters no Ada runtime code before `execve` or `_exit`.
   Keep the C boundary small, readable and limited to async-signal-safe child
   operations; explain non-obvious ownership and cleanup steps in comments.

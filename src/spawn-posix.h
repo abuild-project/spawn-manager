@@ -56,10 +56,11 @@ enum spawn_posix_failure_stage {
 	SPAWN_POSIX_TERMINATE_GROUP = 17
 };
 
-/* Output policies accepted by the version-1 normalized launch request. */
+/* Output policies; MERGE_STDOUT is valid only for stderr. */
 enum spawn_posix_stream_mode {
 	SPAWN_POSIX_NULL_STREAM = 0,
-	SPAWN_POSIX_TRUNCATE_FILE = 1
+	SPAWN_POSIX_TRUNCATE_FILE = 1,
+	SPAWN_POSIX_MERGE_STDOUT = 2
 };
 
 /* Complete result written on every return from spawn_posix_execute. */

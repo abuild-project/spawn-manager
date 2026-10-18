@@ -102,7 +102,7 @@ package body Spawn_Manager_Processes is
       function Convert
         (Stream : Spawn.Protocol.Stream_Specification_Type)
          return Stream_Specification;
-      --  Convert the two fixed protocol stream alternatives.
+      --  Map null, truncate and stderr-to-stdout policies to the launch model.
 
       function Convert
         (Stream : Spawn.Protocol.Stream_Specification_Type)
@@ -112,6 +112,8 @@ package body Spawn_Manager_Processes is
          case Stream.Mode is
             when Spawn.Protocol.Null_Stream =>
                return (Mode => Null_Stream, Path => <>);
+            when Spawn.Protocol.Merge_Stdout =>
+               return (Mode => Merge_Stdout, Path => <>);
             when Spawn.Protocol.Truncate_File =>
                return
                  (Mode => Truncate_File,
@@ -305,7 +307,7 @@ package body Spawn_Manager_Processes is
          return CS.chars_ptr
       is
       begin
-         if Stream.Mode = Null_Stream then
+         if Stream.Mode /= Truncate_File then
             return CS.Null_Ptr;
          end if;
          declare
@@ -342,6 +344,9 @@ package body Spawn_Manager_Processes is
       procedure Validate_Request
       is
       begin
+         if Request.Standard_Output.Mode = Merge_Stdout then
+            raise Constraint_Error with "stdout cannot refer to itself";
+         end if;
          Require_Absolute (Value => Executable_Value, Name => "executable");
          if Request.Environment_Policy = Replace then
             Require_Absolute (Value => Directory_Value, Name => "directory");
@@ -449,6 +454,7 @@ package body Spawn_Manager_Processes is
       case Mode is
          when Null_Stream   => return 0;
          when Truncate_File => return 1;
+         when Merge_Stdout  => return 2;
       end case;
    end To_C_Stream_Mode;
 

@@ -45,8 +45,9 @@ Build the documentation with the same image:
 '
 ```
 
-The generated HTML landing page, changelog, work queue and version 1 protocol
-and lifecycle contracts are written below `doc/html/`.
+The generated HTML landing page, changelog, work queue, historical protocol 1,
+current protocol 2 and unchanged lifecycle contract are written below
+`doc/html/`.
 
 Set `SPAWN_CI_IMAGE` to override the local image name,
 `DOCKER_PLATFORM` to override the default `linux/amd64` platform, and

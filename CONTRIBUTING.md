@@ -44,7 +44,7 @@ The shell API retains `/bin/bash -o pipefail -c` behavior. The structured API
 retains exact executable, argument, environment, directory, stream and result
 semantics.
 
-Protocol version 1 is fixed and fail-closed. An incompatible wire change
+Each protocol version is fixed and fail-closed. An incompatible wire change
 requires a new protocol version, updated format documentation and independent
 golden-byte tests.
 

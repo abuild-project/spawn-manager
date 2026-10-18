@@ -61,17 +61,17 @@ static uint32_t decode_u32(const unsigned char *data)
 int main(int argc, char *argv[])
 {
 	/*
-	 * Independent complete V1 result frames: 12-byte big-endian header,
+	 * Independent complete V2 result frames: 12-byte big-endian header,
 	 * followed by either kind 5 plus one string or kind 3 plus stage,
 	 * errno and one string. The environment selects the latter frame's two
 	 * stage bytes; the Ada decoder constants are not reused here.
 	 */
 	static const unsigned char protocol_failure_result[] = {
-		'S', 'P', 'W', 'N', 0, 1, 0, 3, 0, 0, 0, 9,
+		'S', 'P', 'W', 'N', 0, 2, 0, 3, 0, 0, 0, 9,
 		5, 0, 0, 0, 4, 's', 't', 'o', 'p'
 	};
 	unsigned char supervision_failure_result[] = {
-		'S', 'P', 'W', 'N', 0, 1, 0, 3, 0, 0, 0, 22,
+		'S', 'P', 'W', 'N', 0, 2, 0, 3, 0, 0, 0, 22,
 		3, 0, 17, 0, 0, 0, 5, 0, 0, 0, 11,
 		'c', 'o', 'n', 't', 'a', 'i', 'n', 'm', 'e', 'n', 't'
 	};

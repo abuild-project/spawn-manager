@@ -439,7 +439,7 @@ is
             return (Kind => Spawn.Protocol.Timed_Out);
          when Spawn_Manager_Processes.Spawn_Failed
             | Spawn_Manager_Processes.Internal_Error =>
-            --  Version 1 deliberately has one execution-boundary failure
+            --  The protocol deliberately has one execution-boundary failure
             --  alternative. Stage and errno retain the actionable failure
             --  point; the internal-versus-spawn classification is not public.
             return

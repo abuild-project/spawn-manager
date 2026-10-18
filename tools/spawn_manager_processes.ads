@@ -52,8 +52,8 @@ package Spawn_Manager_Processes is
    --  Shell requests inherit the immutable manager environment; structured
    --  requests replace it completely, including with an empty vector.
 
-   type Stream_Mode is (Null_Stream, Truncate_File);
-   --  Version 1 permits only /dev/null or a newly truncated regular output.
+   type Stream_Mode is (Null_Stream, Truncate_File, Merge_Stdout);
+   --  Stderr may duplicate stdout; other modes select null or truncate output.
 
    type Stream_Specification is record
       Mode : Stream_Mode := Null_Stream;
