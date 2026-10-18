@@ -14,7 +14,9 @@
 
 """Require the actual manager to reap its group before catchable shutdown."""
 
+from contextlib import chdir
 import ctypes
+import errno
 import json
 import os
 from pathlib import Path
@@ -98,12 +100,72 @@ def collect_children():
 
 
 def connect_when_ready(connection, address):
-    """A bound socket can exist before the manager has started listening."""
-    try:
-        connection.connect(str(address))
-        return True
-    except (FileNotFoundError, ConnectionRefusedError):
-        return False
+    """Use a short socket address and restore cwd on every return or error."""
+    # This sequential harness has no competing process-wide cwd consumer.
+    with chdir(address.parent):
+        try:
+            connection.connect(address.name)
+            return True
+        except (FileNotFoundError, ConnectionRefusedError):
+            return False
+
+
+def check_socket_paths():
+    """Pin long-parent connections and cwd restoration on every outcome."""
+    original = Path.cwd()
+    with tempfile.TemporaryDirectory(prefix="spawn-socket-") as temporary:
+        directory = Path(temporary) / ("long-directory-" * 12)
+        directory.mkdir(mode=0o700)
+        address = directory / "manager.sock"
+        try:
+            # Independent control: this absolute address really is too long.
+            with socket.socket(socket.AF_UNIX) as connection:
+                try:
+                    connection.connect(str(address))
+                except OSError as error:
+                    require(str(error) == "AF_UNIX path too long",
+                            "socket fixture does not exceed the path limit")
+                else:
+                    raise AssertionError("absolute socket path was accepted")
+
+            with socket.socket(socket.AF_UNIX) as server:
+                server.settimeout(5)
+                with socket.socket(socket.AF_UNIX) as connection:
+                    require(not connect_when_ready(connection, address),
+                            "missing socket unexpectedly connected")
+                require(Path.cwd() == original, "missing socket changed cwd")
+
+                with chdir(directory):
+                    server.bind(address.name)
+                with socket.socket(socket.AF_UNIX) as connection:
+                    require(not connect_when_ready(connection, address),
+                            "unlistening socket unexpectedly connected")
+                require(Path.cwd() == original, "refused socket changed cwd")
+
+                server.listen(1)
+                with socket.socket(socket.AF_UNIX) as connection:
+                    connection.settimeout(5)
+                    require(connect_when_ready(connection, address),
+                            "relative socket connection failed")
+                    accepted, _ = server.accept()
+                    accepted.close()
+                require(Path.cwd() == original, "successful socket changed cwd")
+
+                with socket.socket(socket.AF_UNIX) as connection:
+                    connection.close()
+                    try:
+                        connect_when_ready(connection, address)
+                    except OSError as error:
+                        require(error.errno == errno.EBADF,
+                                "unexpected closed-socket error")
+                    else:
+                        raise AssertionError("closed socket was accepted")
+                require(Path.cwd() == original, "socket exception changed cwd")
+        finally:
+            # Rescue comes after the assertions, so it cannot mask a leak.
+            os.chdir(original)
+    print("PASS signal fixture: relative sockets and cwd restoration",
+          flush=True)
 
 
 def recover(manager):
@@ -166,7 +228,8 @@ def check_recovery():
                     os.waitpid(-1, os.WNOHANG)
                 except ChildProcessError:
                     break
-                require(time.monotonic() < deadline, "recovery rescue timed out")
+                require(time.monotonic() < deadline,
+                        "recovery rescue timed out")
                 time.sleep(0.01)
     print("PASS signal fixture: newly adopted recovery children", flush=True)
 
@@ -214,6 +277,7 @@ def main():
     libc = ctypes.CDLL(None, use_errno=True)
     require(libc.prctl(PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) == 0,
             "cannot enable test subreaper")
+    check_socket_paths()
     check_recovery()
     for kind in ("shell", "exec"):
         for termination in (signal.SIGINT, signal.SIGTERM):
